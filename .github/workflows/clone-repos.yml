@@ -28,6 +28,13 @@ jobs:
         path: ./music
         token: ${{ secrets.PAT_TOKEN }}
 
+    - name: Clone external repo
+      uses: actions/checkout@v4
+      with:
+        repository: marco-polo-org/tf-gh-actions-rnd
+        path: ./tf-gh-actions-rnd
+        token: ${{ secrets.PAT_TOKEN}}
+
     - name: List cloned repositories
       run: |
         echo "Contents of workspace:"
@@ -36,3 +43,5 @@ jobs:
         ls -la delder_bot
         echo "\nContents of second repo:"
         ls -la music
+        echo "\nContents of external repo:"
+        ls -ls tf-gh-actions-rnd
