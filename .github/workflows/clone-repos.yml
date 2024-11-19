@@ -33,6 +33,6 @@ jobs:
         echo "Contents of workspace:"
         ls -la
         echo "\nContents of first repo:"
-        ls -la first-repo
+        ls -la delder_bot
         echo "\nContents of second repo:"
-        ls -la second-repo
+        ls -la music
