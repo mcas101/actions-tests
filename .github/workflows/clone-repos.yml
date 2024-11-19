@@ -45,4 +45,4 @@ jobs:
         ls -la music
         echo "\nContents of external repo:"
         ls -ls tf-gh-actions-rnd
-        cat tf-gh-gh-actions-rnd/README.md
+        cat ./tf-gh-gh-actions-rnd/README.md
