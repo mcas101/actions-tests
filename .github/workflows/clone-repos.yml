@@ -18,10 +18,16 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Clone first repository
-      run: git clone https://github.com/mcas101/delder_bot.git # Just testing random repos to pull
+      run: | 
+        git clone https://github.com/mcas101/delder_bot.git
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }} # Just testing random repos to pull
 
     - name: Clone second repository
-      run: git clone https://github.com/mcas101/music.git # Just testing random repos to pull
+      run: | 
+        git clone https://github.com/mcas101/music.git
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }} # Just testing random repos to pull
 
     - name: List directories to verify cloning
       run: |
