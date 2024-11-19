@@ -1,0 +1,30 @@
+name: Clone Two Repositories
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'main'
+        type: string
+
+jobs:
+  clone-repos:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout the current repository
+      uses: actions/checkout@v2
+
+    - name: Clone first repository
+      run: git clone https://github.com/mcas101/delder_bot.git # Just testing random repos to pull
+
+    - name: Clone second repository
+      run: git clone https://github.com/mcas101/music.git # Just testing random repos to pull
+
+    - name: List directories to verify cloning
+      run: |
+        ls
+        cd repo1 && ls
+        cd ../repo2 && ls
