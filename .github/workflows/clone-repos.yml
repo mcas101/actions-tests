@@ -14,23 +14,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout the current repository
-      uses: actions/checkout@v2
-
     - name: Clone first repository
-      run: | 
-        git clone https://github.com/mcas101/delder_bot.git
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }} # Just testing random repos to pull
+      uses: actions/checkout@v4
+      with:
+        repository: mcas101/delder_bot
+        path: ./delder_bot
+        token: ${{ secrets.PAT_TOKEN }}
 
     - name: Clone second repository
-      run: | 
-        git clone https://github.com/mcas101/music.git
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }} # Just testing random repos to pull
+      uses: actions/checkout@v4
+      with:
+        repository: mcas101/music
+        path: ./music
+        token: ${{ secrets.PAT_TOKEN }}
 
-    - name: List directories to verify cloning
+    - name: List cloned repositories
       run: |
-        ls
-        cd repo1 && ls
-        cd ../repo2 && ls
+        echo "Contents of workspace:"
+        ls -la
+        echo "\nContents of first repo:"
+        ls -la first-repo
+        echo "\nContents of second repo:"
+        ls -la second-repo
