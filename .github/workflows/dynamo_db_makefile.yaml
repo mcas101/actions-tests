@@ -1,0 +1,61 @@
+name: DynamoDB Local Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      retries:
+        description: 'Number of retries'
+        required: false
+        default: '60'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      - name: Set up AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: dummy
+          AWS_SECRET_ACCESS_KEY: dummy
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region $AWS_DEFAULT_REGION
+
+      - name: Create wait script
+        run: |
+          cat > wait_for_success.sh << 'EOF'
+          #!/bin/bash
+          function main {
+              local retries=${RETRIES:-60}
+              until [[ ${retries} -eq 0 ]]; do
+                  if "$@"; then
+                      echo "ready"
+                      exit 0
+                  else
+                      echo "not ready, pausing 1s"
+                      (( retries-=1 ))
+                      sleep 1
+                  fi
+              done
+              echo "Retries exceeded!  Unable to connect to service."
+              exit 1
+          }
+          main "$@"
+          EOF
+          chmod +x wait_for_success.sh
+
+      - name: Start and test DynamoDB
+        env:
+          RETRIES: ${{ inputs.retries }}
+        run: make clean-start
+
+      # Add your additional test steps here
