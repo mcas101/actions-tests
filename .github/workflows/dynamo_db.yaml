@@ -12,20 +12,31 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+          - 8000:8000
+        options: >-
+          --health-cmd "curl -f http://localhost:8000/shell/ || exit 1" 
+          --health-interval 20s 
+          --health-timeout 10s 
+          --health-retries 3
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Start DynamoDB Local
-        run: |
-          docker run -d -p 8000:8000 amazon/dynamodb-local
-          # Wait for container to start
-          sleep 5
-          docker ps
-
       - name: Docker container debug info
         run: |
+          echo "List of running containers:"
           docker ps -a
-          docker logs $(docker ps -aq --filter name=dynamodb)
+          echo "Container logs:"
+          CONTAINER_ID=$(docker ps -q --filter ancestor=amazon/dynamodb-local)
+          if [ ! -z "$CONTAINER_ID" ]; then
+            docker logs $CONTAINER_ID
+          else
+            echo "No DynamoDB container found"
+          fi
 
       - name: Create wait script
         run: |
@@ -69,16 +80,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y awscli
 
-      - name: Wait for DynamoDB
+      - name: Test DynamoDB connection
         run: |
-          for i in {1..30}; do
-            if curl -s http://localhost:8000 > /dev/null; then
-              echo "DynamoDB is running"
-              break
-            fi
-            echo "Waiting for DynamoDB... attempt $i"
-            sleep 2
-          done
+          echo "Testing DynamoDB connection..."
+          curl -v http://localhost:8000
+          aws dynamodb list-tables --endpoint-url http://localhost:8000 || true
 
       - name: Create test table with retries
         env:
