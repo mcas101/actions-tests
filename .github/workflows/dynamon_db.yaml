@@ -1,0 +1,113 @@
+name: DynamoDB Local Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      retries:
+        description: 'Number of retries'
+        required: false
+        default: '60'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+          - 8000:8000
+        options: >-
+          --health-cmd "curl -f http://localhost:8000/shell/ || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create wait script
+        run: |
+          cat > wait_for_success.sh << 'EOF'
+          #!/bin/bash
+          
+          function main {
+              local retries=${RETRIES:-60}
+
+              until [[ ${retries} -eq 0 ]]; do
+                  if "$@"; then
+                      echo "ready"
+                      exit 0
+                  else
+                      echo "not ready, pausing 1s"
+                      (( retries-=1 ))
+                      sleep 1
+                  fi
+              done
+
+              echo "Retries exceeded!  Unable to connect to service."
+              exit 1
+          }
+
+          main "$@"
+          EOF
+          chmod +x wait_for_success.sh
+
+      - name: Set up AWS credentials
+        env:
+          AWS_ACCESS_KEY_ID: dummy
+          AWS_SECRET_ACCESS_KEY: dummy
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set default.region $AWS_DEFAULT_REGION
+
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      - name: Create test table with retries
+        env:
+          RETRIES: ${{ inputs.retries }}
+        run: |
+          ./wait_for_success.sh aws dynamodb create-table \
+          --endpoint-url http://localhost:8000 \
+          --table-name service-test-call-correlation \
+          --attribute-definitions \
+            AttributeName=correlationId,AttributeType=S \
+            AttributeName=startUtc,AttributeType=N \
+          --key-schema \
+            AttributeName=correlationId,KeyType=HASH \
+            AttributeName=startUtc,KeyType=RANGE \
+          --region us-east-1 \
+          --provisioned-throughput \
+            ReadCapacityUnits=10,WriteCapacityUnits=10 \
+          && echo "Table created"
+
+      - name: Verify table creation
+        run: |
+          aws dynamodb describe-table \
+            --table-name service-test-call-correlation \
+            --endpoint-url http://localhost:8000
+
+      - name: Test table operations
+        run: |
+          # Insert test item
+          aws dynamodb put-item \
+            --table-name service-test-call-correlation \
+            --item '{
+              "correlationId": {"S": "test-123"},
+              "startUtc": {"N": "1700686524"}
+            }' \
+            --endpoint-url http://localhost:8000
+          
+          # Verify item
+          aws dynamodb get-item \
+            --table-name service-test-call-correlation \
+            --key '{
+              "correlationId": {"S": "test-123"},
+              "startUtc": {"N": "1700686524"}
+            }' \
+            --endpoint-url http://localhost:8000
