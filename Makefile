@@ -1,4 +1,4 @@
-.PHONY: start-dynamodb wait-dynamodb create-table test-dynamodb stop-dynamodb
+.PHONY: start-dynamodb wait-dynamodb create-table test-dynamodb stop-dynamodb check-dynamodb
 
 # Start DynamoDB container
 start-dynamodb:
@@ -22,6 +22,15 @@ wait-dynamodb:
 	echo "DynamoDB failed to start"; \
 	exit 1
 
+# Check DynamoDB tables
+check-dynamodb:
+	@echo "Checking DynamoDB tables..."
+	./wait_for_success.sh aws dynamodb --endpoint-url http://localhost:8000 --region test list-tables || { \
+		echo "DynamoDB check failed. Container logs:"; \
+		docker logs dynamodb-local; \
+		exit 1; \
+	}
+
 # Create test table
 create-table:
 	./wait_for_success.sh aws dynamodb create-table \
@@ -38,7 +47,7 @@ create-table:
 			ReadCapacityUnits=10,WriteCapacityUnits=10
 
 # Test DynamoDB setup
-test-dynamodb: start-dynamodb wait-dynamodb create-table
+test-dynamodb: start-dynamodb wait-dynamodb check-dynamodb create-table
 	@echo "Testing DynamoDB setup..."
 	aws dynamodb describe-table \
 		--table-name service-test-call-correlation \
