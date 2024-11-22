@@ -1,4 +1,4 @@
-name: DynamoDB Local Test
+name: DynamoDB Local Test with Makefile 
 
 on:
   workflow_dispatch:
