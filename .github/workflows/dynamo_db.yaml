@@ -12,31 +12,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    services:
-      dynamodb:
-        image: amazon/dynamodb-local:latest
-        ports:
-          - 8000:8000
-        options: >-
-          --health-cmd "curl -f http://localhost:8000/shell/ || exit 1" 
-          --health-interval 20s 
-          --health-timeout 10s 
-          --health-retries 3
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Docker container debug info
+      - name: Start DynamoDB Local
         run: |
-          echo "List of running containers:"
-          docker ps -a
-          echo "Container logs:"
-          CONTAINER_ID=$(docker ps -q --filter ancestor=amazon/dynamodb-local)
-          if [ ! -z "$CONTAINER_ID" ]; then
-            docker logs $CONTAINER_ID
-          else
-            echo "No DynamoDB container found"
-          fi
+          docker run -d \
+            -p 8000:8000 \
+            --name dynamodb-local \
+            amazon/dynamodb-local:1.22.0 \
+            -jar DynamoDBLocal.jar -sharedDb -inMemory
+          
+          # Wait for container to start and show logs
+          sleep 5
+          docker ps
+          docker logs dynamodb-local
 
       - name: Create wait script
         run: |
@@ -80,11 +70,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y awscli
 
-      - name: Test DynamoDB connection
+      - name: Wait for DynamoDB
+        timeout-minutes: 1
         run: |
-          echo "Testing DynamoDB connection..."
-          curl -v http://localhost:8000
-          aws dynamodb list-tables --endpoint-url http://localhost:8000 || true
+          echo "Waiting for DynamoDB to be ready..."
+          until curl -s http://localhost:8000 > /dev/null; do
+            echo "DynamoDB is starting..."
+            sleep 1
+          done
+          echo "DynamoDB is ready!"
 
       - name: Create test table with retries
         env:
@@ -108,4 +102,24 @@ jobs:
         run: |
           aws dynamodb describe-table \
             --table-name service-test-call-correlation \
+            --endpoint-url http://localhost:8000
+
+      - name: Test table operations
+        run: |
+          # Insert test item
+          aws dynamodb put-item \
+            --table-name service-test-call-correlation \
+            --item '{
+              "correlationId": {"S": "test-123"},
+              "startUtc": {"N": "1700686524"}
+            }' \
+            --endpoint-url http://localhost:8000
+          
+          # Verify item
+          aws dynamodb get-item \
+            --table-name service-test-call-correlation \
+            --key '{
+              "correlationId": {"S": "test-123"},
+              "startUtc": {"N": "1700686524"}
+            }' \
             --endpoint-url http://localhost:8000
