@@ -12,19 +12,15 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    services:
-      dynamodb:
-        image: amazon/dynamodb-local:latest
-        ports:
-          - 8000:8000
-        options: >-
-          --health-cmd "curl -f http://localhost:8000/shell/ || exit 1" 
-          --health-interval 20s 
-          --health-timeout 10s 
-          --health-retries 3
-
     steps:
       - uses: actions/checkout@v4
+
+      - name: Start DynamoDB Local
+        run: |
+          docker run -d -p 8000:8000 amazon/dynamodb-local
+          # Wait for container to start
+          sleep 5
+          docker ps
 
       - name: Docker container debug info
         run: |
